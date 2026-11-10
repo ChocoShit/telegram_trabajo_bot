@@ -32,6 +32,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.request import HTTPXRequest
 
 # Carga de variables de entorno desde .env (sin dependencias externas)
 def load_env(path: str = None) -> None:
@@ -270,7 +271,14 @@ def main() -> None:
         level=logging.INFO,
     )
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Timeouts más largos que el default (10s) para evitar ReadTimeout en esta red
+    request = HTTPXRequest(
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=30.0,
+    )
+    app = Application.builder().token(BOT_TOKEN).request(request).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("trabajo", trabajo))
