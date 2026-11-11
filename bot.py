@@ -77,6 +77,7 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 SESSIONS_FILE = DATA_DIR / "sessions.json"
 PEDIDOS_FILE = DATA_DIR / "pedidos.json"
+MENSAJES_FILE = DATA_DIR / "mensajes.json"
 
 
 def _load_json(path: Path, default):
@@ -255,11 +256,37 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def desconocido(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    if not _es_usuario_autorizado(user.id):
+    if not _esUsuario_autorizado(user.id):
         return
     await update.message.reply_text(
         "Comando no reconocido. Usa `/start` para ver la ayuda.",
         parse_mode="Markdown",
+    )
+
+
+async def mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Guarda un mensaje de texto libre del móvil como aviso para el portátil."""
+    user = update.effective_user
+    if not _esUsuario_autorizado(user.id):
+        return
+
+    texto = update.message.text
+    if not texto:
+        return
+
+    mensajes = _load_json(MENSAJES_FILE, [])
+    mensajes.append({
+        "id": len(mensajes) + 1,
+        "fecha": _fecha(),
+        "hora": _ahora().split(" ")[1],
+        "usuario": user.id,
+        "usuario_nombre": user.full_name or user.username or "usuario",
+        "texto": texto,
+    })
+    _save_json(MENSAJES_FILE, mensajes)
+
+    await update.message.reply_text(
+        f"💬 Mensaje guardado para el portátil:\n\n{texto}"
     )
 
 
@@ -287,6 +314,7 @@ def main() -> None:
     app.add_handler(CommandHandler("pedido", pedido))
     app.add_handler(CommandHandler("ping", ping))
     app.add_handler(MessageHandler(filters.COMMAND, desconocido))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
     print("🤖 Trabajo Bot iniciado. Presiona Ctrl+C para detener.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
